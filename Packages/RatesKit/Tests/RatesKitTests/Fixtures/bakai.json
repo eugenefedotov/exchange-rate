@@ -1,0 +1,449 @@
+{
+ "latest_update_time": {
+  "last_execution": "2026-11-21T13:35:00.135280"
+ },
+ "terms": {
+  "cash": [
+   {
+    "id": 1,
+    "term": "Указанные курсы валют действуют для головного отделения банка (филиал \"Главный\"). Курсы в других отделениях банка могут отличаться",
+    "created_at": "2024-12-06T13:53:45",
+    "updated_at": "2026-07-23T17:40:50.946"
+   }
+  ]
+ },
+ "result": [
+  {
+   "RUB": {
+    "name": "Российский рубль",
+    "cash": {
+     "buy": 0.98,
+     "sell": 1.09,
+     "difference": null
+    },
+    "transfer": {
+     "buy": 1.01,
+     "sell": 1.11,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 1.0665,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 1.01,
+     "sell": 1.11,
+     "difference": null
+    }
+   }
+  },
+  {
+   "EUR": {
+    "name": "Евро",
+    "cash": {
+     "buy": 96.0,
+     "sell": 97.0,
+     "difference": null
+    },
+    "transfer": {
+     "buy": 96.0,
+     "sell": 97.0,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 95.8977,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 96.0,
+     "sell": 97.0,
+     "difference": null
+    }
+   }
+  },
+  {
+   "AED": {
+    "name": "Дирхам ОАЭ",
+    "cash": {
+     "buy": 23.4,
+     "sell": 24.4,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 23.8098,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 23.4,
+     "sell": 24.4,
+     "difference": null
+    }
+   }
+  },
+  {
+   "KZT": {
+    "name": "Казахстанский тенге",
+    "cash": {
+     "buy": 0.19,
+     "sell": 0.21,
+     "difference": null
+    },
+    "transfer": {
+     "buy": 0.185,
+     "sell": 0.205,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 0.1923,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 0.185,
+     "sell": 0.205,
+     "difference": null
+    }
+   }
+  },
+  {
+   "CNY": {
+    "name": "Китайский юань",
+    "cash": {
+     "buy": 12.8,
+     "sell": 13.8,
+     "difference": null
+    },
+    "transfer": {
+     "buy": 12.8,
+     "sell": 13.8,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 13.1028,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 12.8,
+     "sell": 13.8,
+     "difference": null
+    }
+   }
+  },
+  {
+   "XPT": {
+    "name": "Платина",
+    "cash": {
+     "buy": 3091.26,
+     "sell": 4274.91,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 3884.06,
+     "difference": null
+    },
+    "oms": {
+     "buy": 3091.26,
+     "sell": 4274.91,
+     "difference": null
+    }
+   }
+  },
+  {
+   "XAG": {
+    "name": "Серебро",
+    "cash": {
+     "buy": 94.44,
+     "sell": 139.31,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 126.58,
+     "difference": null
+    },
+    "oms": {
+     "buy": 94.44,
+     "sell": 139.31,
+     "difference": null
+    }
+   }
+  },
+  {
+   "XAU": {
+    "name": "Золото",
+    "cash": {
+     "buy": 9338.3,
+     "sell": 11479.07,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 10429.56,
+     "difference": null
+    },
+    "oms": {
+     "buy": 9338.3,
+     "sell": 11479.07,
+     "difference": null
+    }
+   }
+  },
+  {
+   "USD": {
+    "name": "Доллар США",
+    "cash": {
+     "buy": 87.3,
+     "sell": 87.8,
+     "difference": null
+    },
+    "transfer": {
+     "buy": 87.0,
+     "sell": 87.5,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 87.45,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 87.0,
+     "sell": 87.5,
+     "difference": null
+    }
+   }
+  },
+  {
+   "GBP": {
+    "name": "Фунт стерлингов",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 110.3242,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 113.9275,
+     "sell": 120.0,
+     "difference": null
+    }
+   }
+  },
+  {
+   "JPY": {
+    "name": "Японская иена",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 6.0035,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 0.5,
+     "sell": 0.6,
+     "difference": null
+    }
+   }
+  },
+  {
+   "TRY": {
+    "name": "Турецкая лира",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": 2.5,
+     "sell": 3.1,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 2.1911,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 2.0,
+     "sell": 3.0,
+     "difference": null
+    }
+   }
+  },
+  {
+   "CHF": {
+    "name": "Швейцарский франк",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 70.634,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 102.94,
+     "sell": 110.0,
+     "difference": null
+    }
+   }
+  },
+  {
+   "BYN": {
+    "name": "Белорусский рубль",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 33.987,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    }
+   }
+  },
+  {
+   "AUD": {
+    "name": "Австралийский доллар",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 47.4247,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    }
+   }
+  },
+  {
+   "UAH": {
+    "name": "Украинская гривна",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 2.881,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 44.05,
+     "sell": 44.4,
+     "difference": null
+    }
+   }
+  },
+  {
+   "CAD": {
+    "name": "Канадский доллар",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 52.7429,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": 0.92,
+     "sell": 1.02,
+     "difference": null
+    }
+   }
+  },
+  {
+   "UZS": {
+    "name": "Узбекский сум",
+    "cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "transfer": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    },
+    "nbkr": {
+     "rate": 0.0074,
+     "difference": null
+    },
+    "non_cash": {
+     "buy": null,
+     "sell": null,
+     "difference": null
+    }
+   }
+  }
+ ]
+}

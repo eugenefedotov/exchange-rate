@@ -1,0 +1,8 @@
+// Общие настройки подписи для приложения и виджета.
+// Свой Team ID и префикс bundle id пропишите в Config/Local.xcconfig (он в .gitignore),
+// образец лежит рядом в Local.xcconfig.example.
+
+BUNDLE_ID_PREFIX = com.eugenefedotov
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

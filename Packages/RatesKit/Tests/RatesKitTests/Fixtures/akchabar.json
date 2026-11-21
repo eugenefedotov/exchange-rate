@@ -1,0 +1,81 @@
+[
+ {
+  "rate_from": "mossovet",
+  "bank": null,
+  "rate_values": {
+   "cny_buy_rate": 13.1,
+   "cny_sell_rate": 13.9,
+   "cny_buy_rate_diff": null,
+   "cny_buy_rate_diff_percentage": null,
+   "cny_sell_rate_diff": null,
+   "cny_sell_rate_diff_percentage": null,
+   "kzt_buy_rate": 0.18,
+   "kzt_sell_rate": 0.2052,
+   "kzt_buy_rate_diff": null,
+   "kzt_buy_rate_diff_percentage": null,
+   "kzt_sell_rate_diff": null,
+   "kzt_sell_rate_diff_percentage": null,
+   "rub_buy_rate": 0.988,
+   "rub_sell_rate": 1.077,
+   "rub_buy_rate_diff": null,
+   "rub_buy_rate_diff_percentage": null,
+   "rub_sell_rate_diff": null,
+   "rub_sell_rate_diff_percentage": null,
+   "eur_buy_rate": 95.75,
+   "eur_sell_rate": 96.73,
+   "eur_buy_rate_diff": null,
+   "eur_buy_rate_diff_percentage": null,
+   "eur_sell_rate_diff": null,
+   "eur_sell_rate_diff_percentage": null,
+   "usd_buy_rate": 87.42,
+   "usd_sell_rate": 87.81,
+   "usd_buy_rate_diff": null,
+   "usd_buy_rate_diff_percentage": null,
+   "usd_sell_rate_diff": null,
+   "usd_sell_rate_diff_percentage": null
+  }
+ },
+ {
+  "rate_from": "bank",
+  "bank": {
+   "name": "Евразийский Сберегательный Банк",
+   "slug": "esb",
+   "legal_name": "ОАО «Евразийский Сберегательный Банк»",
+   "logo": {
+    "url": "https://akchabar-storage.fra1.digitaloceanspaces.com/akchabar-storage/media/bank/2024/08/25/esb.webp",
+    "image_source_name": null,
+    "description": "Евразийский Сберегательный Банк",
+    "size": {
+     "width": 300,
+     "height": 100
+    }
+   }
+  },
+  "rate_values": {
+   "kzt_buy_rate": 0.105,
+   "kzt_sell_rate": 0.2,
+   "kzt_buy_rate_diff": 0.0,
+   "kzt_buy_rate_diff_percentage": 0.0,
+   "kzt_sell_rate_diff": 0.0,
+   "kzt_sell_rate_diff_percentage": 0.0,
+   "rub_buy_rate": 1.0,
+   "rub_sell_rate": 1.07,
+   "rub_buy_rate_diff": 0.0,
+   "rub_buy_rate_diff_percentage": 0.0,
+   "rub_sell_rate_diff": 0.0,
+   "rub_sell_rate_diff_percentage": 0.0,
+   "eur_buy_rate": 95.6,
+   "eur_sell_rate": 96.6,
+   "eur_buy_rate_diff": 0.0,
+   "eur_buy_rate_diff_percentage": 0.0,
+   "eur_sell_rate_diff": 0.0,
+   "eur_sell_rate_diff_percentage": 0.0,
+   "usd_buy_rate": 87.3,
+   "usd_sell_rate": 87.8,
+   "usd_buy_rate_diff": 0.0,
+   "usd_buy_rate_diff_percentage": 0.0,
+   "usd_sell_rate_diff": 0.0,
+   "usd_sell_rate_diff_percentage": 0.0
+  }
+ }
+]

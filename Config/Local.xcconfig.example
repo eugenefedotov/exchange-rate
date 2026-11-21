@@ -1,0 +1,6 @@
+// Скопируйте в Config/Local.xcconfig и впишите свои значения.
+// Team ID видно в Xcode: Settings > Accounts > выбрать аккаунт > Team.
+
+DEVELOPMENT_TEAM = XXXXXXXXXX
+// Bundle id должен быть уникальным для вашего Apple ID. Если Xcode ругается, что id занят, поменяйте префикс.
+BUNDLE_ID_PREFIX = com.eugenefedotov
