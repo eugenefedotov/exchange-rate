@@ -39,12 +39,12 @@ private struct HomeRatesView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: isCompact ? 6 : 4) {
+        VStack(alignment: .leading, spacing: isCompact ? 6 : 2) {
             if isCompact {
                 CompactSourceSwitcher(selected: entry.source)
             }
 
-            Grid(alignment: .leading, horizontalSpacing: isCompact ? 6 : 10, verticalSpacing: isCompact ? 4 : 3) {
+            Grid(alignment: .leading, horizontalSpacing: isCompact ? 6 : 10, verticalSpacing: isCompact ? 4 : 2) {
                 if !isCompact {
                     GridRow {
                         SourceSwitcher(selected: entry.source)
@@ -69,6 +69,28 @@ private struct HomeRatesView: View {
                     }
                 }
                 .font(.system(.footnote, design: .rounded).monospacedDigit())
+
+                // Донг: одно число вместо покупки и продажи, поэтому строка подписана сама
+                // и отделена линией. Курс ЦБ РФ, от выбранного источника не зависит.
+                if !isCompact, let dong = entry.dong {
+                    Divider()
+                    GridRow {
+                        HStack(spacing: 6) {
+                            Text("🇻🇳")
+                            Text("VND")
+                                .fontWeight(.semibold)
+                            Text("за 1 ₽ / сом")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("\(dong.perRubleText) ₫")
+                            .contentTransition(.numericText())
+                        Text("\(dong.perSomText) ₫")
+                            .contentTransition(.numericText())
+                    }
+                    .font(.system(.footnote, design: .rounded).monospacedDigit())
+                }
             }
             .lineLimit(1)
             .minimumScaleFactor(0.8)
@@ -293,8 +315,8 @@ private struct InlineRatesView: View {
 #Preview("Средний", as: .systemMedium) {
     RatesWidget()
 } timeline: {
-    RatesEntry(date: .now, source: .exchange, model: RatesProvider.model(.sample, isStale: false))
-    RatesEntry(date: .now, source: .bakai, model: RatesProvider.model(.sample(.bakai), kind: .cash, isStale: false))
+    RatesEntry(date: .now, source: .exchange, model: RatesProvider.model(.sample, isStale: false), dong: .sample)
+    RatesEntry(date: .now, source: .bakai, model: RatesProvider.model(.sample(.bakai), kind: .cash, isStale: false), dong: .sample)
     RatesEntry(date: .now, source: .mbank, model: RatesProvider.model(.sample(.mbank), kind: .nonCash, isStale: false))
 }
 

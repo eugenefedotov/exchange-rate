@@ -12,11 +12,14 @@ final class RatesViewController: UITableViewController {
 
     private let exchangeService = RatesService()
     private let bankServices = Bank.allCases.map(BankService.init(bank:))
+    private let dongService = DongService()
 
     private var exchange: RatesSnapshot?
     private var exchangeError: String?
     private var banks: [Bank: BankRatesSnapshot] = [:]
     private var bankErrors: [Bank: String] = [:]
+    private var dong: DongRates?
+    private var dongError: String?
     /// Наличные или безнал, отдельно для каждого банка. Запоминается между запусками.
     private var bankKinds: [Bank: BankRateKind] = [:]
 
@@ -41,6 +44,7 @@ final class RatesViewController: UITableViewController {
 
         tableView.register(RateCell.self, forCellReuseIdentifier: RateCell.reuseID)
         tableView.register(SegmentedCell.self, forCellReuseIdentifier: SegmentedCell.reuseID)
+        tableView.register(DongCell.self, forCellReuseIdentifier: DongCell.reuseID)
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: Self.sourceReuseID)
         tableView.register(RatesHeaderView.self, forHeaderFooterViewReuseIdentifier: RatesHeaderView.reuseID)
         tableView.register(UITableViewHeaderFooterView.self, forHeaderFooterViewReuseIdentifier: Self.footerReuseID)
@@ -70,6 +74,7 @@ final class RatesViewController: UITableViewController {
         for service in bankServices {
             banks[service.bank] = service.cached()
         }
+        dong = dongService.cached()
         render(animated: false)
         refresh()
         startAutoRefresh()
@@ -90,7 +95,7 @@ final class RatesViewController: UITableViewController {
     }
 
     @objc private func willEnterForeground() {
-        let dates = [exchange?.fetchedAt] + Bank.allCases.map { banks[$0]?.fetchedAt }
+        let dates = [exchange?.fetchedAt, dong?.fetchedAt] + Bank.allCases.map { banks[$0]?.fetchedAt }
         let oldest = dates.map { $0 ?? .distantPast }.min() ?? .distantPast
         if Date.now.timeIntervalSince(oldest) > Self.foregroundRefreshInterval {
             refresh()
@@ -116,9 +121,10 @@ final class RatesViewController: UITableViewController {
 
     private func refresh() {
         guard refreshTask == nil else { return }
-        refreshTask = Task { [weak self, exchangeService, bankServices] in
+        refreshTask = Task { [weak self, exchangeService, bankServices, dongService] in
             // Все источники параллельно: медленный сайт не задерживает остальные.
             async let exchange = Self.capture { try await exchangeService.fetch() }
+            async let dong = Self.capture { try await dongService.fetch() }
             let banks = await withTaskGroup(of: (Bank, Result<BankRatesSnapshot, Error>).self) { group in
                 for service in bankServices {
                     group.addTask { (service.bank, await Self.capture { try await service.fetch() }) }
@@ -129,7 +135,7 @@ final class RatesViewController: UITableViewController {
                 }
                 return results
             }
-            self?.apply(exchange: await exchange, banks: banks)
+            self?.apply(exchange: await exchange, banks: banks, dong: await dong)
         }
     }
 
@@ -143,7 +149,11 @@ final class RatesViewController: UITableViewController {
         }
     }
 
-    private func apply(exchange exchangeResult: Result<RatesSnapshot, Error>, banks bankResults: [Bank: Result<BankRatesSnapshot, Error>]) {
+    private func apply(
+        exchange exchangeResult: Result<RatesSnapshot, Error>,
+        banks bankResults: [Bank: Result<BankRatesSnapshot, Error>],
+        dong dongResult: Result<DongRates, Error>
+    ) {
         refreshTask = nil
         refreshControl?.endRefreshing()
 
@@ -165,6 +175,11 @@ final class RatesViewController: UITableViewController {
             case .failure(let error):
                 bankErrors[bank] = error.localizedDescription
             }
+        }
+
+        switch dongResult {
+        case .success(let rates): dong = rates; dongError = nil
+        case .failure(let error): dongError = error.localizedDescription
         }
 
         // Виджет живёт своей жизнью, но раз уж данные свежие, пусть обновится и он.
@@ -195,6 +210,17 @@ final class RatesViewController: UITableViewController {
                     self?.select(kinds[index], for: bank)
                 }
                 return cell
+            case .dong(let base):
+                let cell = tableView.dequeueReusableCell(withIdentifier: DongCell.reuseID, for: indexPath)
+                if let dong {
+                    switch base {
+                    case .ruble:
+                        (cell as? DongCell)?.configure(flag: "🇷🇺", code: "1 RUB", title: "Рубль", value: dong.perRubleText)
+                    case .som:
+                        (cell as? DongCell)?.configure(flag: "🇰🇬", code: "1 KGS", title: "Сом", value: dong.perSomText)
+                    }
+                }
+                return cell
             case .source(let source):
                 let cell = tableView.dequeueReusableCell(withIdentifier: Self.sourceReuseID, for: indexPath)
                 var content = UIListContentConfiguration.valueCell()
@@ -210,7 +236,8 @@ final class RatesViewController: UITableViewController {
     }
 
     private static func sourceTitle(_ source: RateSourceID) -> String {
-        Bank.allCases.first { $0.source == source }?.title ?? "Обменки"
+        if source == DongRates.source { return "Донг" }
+        return Bank.allCases.first { $0.source == source }?.title ?? "Обменки"
     }
 
     private func rateCell(_ tableView: UITableView, _ indexPath: IndexPath, _ rate: ExchangeRate?) -> UITableViewCell {
@@ -238,6 +265,11 @@ final class RatesViewController: UITableViewController {
             diff.appendItems([.bankKind(bank)], toSection: section)
             diff.appendItems(snapshot.rates(kind(for: bank)).map { .bankRate(bank, $0.currency) }, toSection: section)
             sources.append(bank.source)
+        }
+        if dong != nil {
+            diff.appendSections([.dong])
+            diff.appendItems(DongBase.allCases.map { .dong($0) }, toSection: .dong)
+            sources.append(DongRates.source)
         }
         if !sources.isEmpty {
             diff.appendSections([.sources])
@@ -288,8 +320,13 @@ final class RatesViewController: UITableViewController {
             guard let snapshot = banks[bank] else { return nil }
             lines.append("\(kind(for: bank).details). Курс банка обновлён \(snapshot.updatedAt.ratesTimeText()).")
             if let error = bankErrors[bank] { lines.append("Не удалось обновить: \(error)") }
+        case .dong:
+            guard let dong else { return nil }
+            let date = (dong.rateDate ?? dong.fetchedAt).formatted(.dateTime.day(.twoDigits).month(.twoDigits))
+            lines.append("Сколько донгов за 1 рубль или 1 сом по курсу ЦБ РФ на \(date). В обменках Бишкека донг не меняют, к сому курс пересчитан через рубль.")
+            if let dongError { lines.append("Не удалось обновить: \(dongError)") }
         case .sources:
-            lines.append("Везде указано, сколько сомов дают и просят за 1 единицу валюты.")
+            lines.append("В обменках и банках указано, сколько сомов дают и просят за 1 единицу валюты.")
         }
         return lines.joined(separator: "\n")
     }
@@ -323,7 +360,7 @@ final class RatesViewController: UITableViewController {
                 as? RatesHeaderView else {
             return nil
         }
-        header.configure(title: title)
+        header.configure(title: title, showsColumns: identifier != .dong)
         return header
     }
 

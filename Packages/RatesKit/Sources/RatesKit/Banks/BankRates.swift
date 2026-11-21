@@ -95,14 +95,12 @@ extension BankRatesSnapshot {
                 rate(.usd, "87.3", "87.8"),
                 rate(.eur, "96", "97"),
                 rate(.kzt, "0.19", "0.21"),
-                rate(.cny, "12.8", "13.8"),
             ],
             nonCash: [
                 rate(.rub, "1.01", "1.11"),
                 rate(.usd, "87", "87.5"),
                 rate(.eur, "96", "97"),
                 rate(.kzt, "0.185", "0.205"),
-                rate(.cny, "12.8", "13.8"),
             ],
             bankUpdatedAt: .now
         )

@@ -12,6 +12,8 @@ public struct RatesCache: Sendable {
     /// Файлы в Caches текущего процесса. У приложения и виджета они свои, App Group не нужен.
     public static let standard = RatesCache(fileName: "rates-snapshot.json")
 
+    public static let dong = RatesCache(fileName: "dong-snapshot.json")
+
     public static func bank(_ bank: Bank) -> RatesCache {
         RatesCache(fileName: "bank-\(bank.rawValue)-snapshot.json")
     }

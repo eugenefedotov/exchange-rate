@@ -7,6 +7,9 @@ final class RatesHeaderView: UITableViewHeaderFooterView {
     private let titleLabel = UILabel()
     private let buyLabel = UILabel()
     private let sellLabel = UILabel()
+    /// Заголовок упирается либо в колонки, либо, если их нет, в правый край.
+    private var titleToColumns: NSLayoutConstraint!
+    private var titleToEdge: NSLayoutConstraint!
 
     override init(reuseIdentifier: String?) {
         super.init(reuseIdentifier: reuseIdentifier)
@@ -16,8 +19,13 @@ final class RatesHeaderView: UITableViewHeaderFooterView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(title: String?) {
+    /// showsColumns: false для секций без покупки и продажи (донг).
+    func configure(title: String?, showsColumns: Bool = true) {
         titleLabel.text = title
+        buyLabel.isHidden = !showsColumns
+        sellLabel.isHidden = !showsColumns
+        titleToColumns.isActive = showsColumns
+        titleToEdge.isActive = !showsColumns
     }
 
     private func setupLayout() {
@@ -44,11 +52,13 @@ final class RatesHeaderView: UITableViewHeaderFooterView {
 
         // Шапка без фона, колонки совмещаются с ячейками через те же layoutMargins.
         let margins = contentView.layoutMarginsGuide
+        titleToColumns = titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: buyLabel.leadingAnchor, constant: -8)
+        titleToEdge = titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: margins.trailingAnchor)
         NSLayoutConstraint.activate([
+            titleToColumns,
             titleLabel.leadingAnchor.constraint(equalTo: margins.leadingAnchor),
             titleLabel.topAnchor.constraint(equalTo: margins.topAnchor, constant: 8),
             titleLabel.bottomAnchor.constraint(equalTo: margins.bottomAnchor),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: buyLabel.leadingAnchor, constant: -8),
 
             sellLabel.trailingAnchor.constraint(equalTo: margins.trailingAnchor),
             sellLabel.widthAnchor.constraint(equalToConstant: RateCell.valueColumnWidth),

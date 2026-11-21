@@ -22,6 +22,7 @@ func printError(_ title: String, _ error: Error) {
 async let exchange = capture { try await RatesService(cache: nil).fetch() }
 async let bakai = capture { try await BankService(bank: .bakai, cache: nil).fetch() }
 async let mbank = capture { try await BankService(bank: .mbank, cache: nil).fetch() }
+async let dong = capture { try await DongService(cache: nil).fetch() }
 
 var failed = 0
 
@@ -46,7 +47,19 @@ for result in await [bakai, mbank] {
     }
 }
 
-exit(failed == 3 ? 1 : 0)
+switch await dong {
+case .success(let rates):
+    let date = rates.rateDate.map { $0.formatted(.dateTime.day(.twoDigits).month(.twoDigits).year()) } ?? "?"
+    print("Вьетнамский донг (\(DongRates.source.name), курс на \(date))")
+    print("🇷🇺 1 рубль = \(rates.perRubleText) ₫")
+    print("🇰🇬 1 сом   = \(rates.perSomText) ₫")
+    print("")
+case .failure(let error):
+    failed += 1
+    printError("Донг", error)
+}
+
+exit(failed == 4 ? 1 : 0)
 
 func capture<T: Sendable>(_ body: @Sendable () async throws -> T) async -> Result<T, Error> {
     do {

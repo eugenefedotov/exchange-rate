@@ -10,7 +10,8 @@ public enum Currency: String, Codable, Sendable, CaseIterable, Hashable {
     case gbp
 
     /// Порядок вывода в приложении и виджете: сверху рубль, потом доллар, дальше популярные.
-    public static let displayOrder: [Currency] = [.rub, .usd, .eur, .kzt, .cny]
+    /// Юань и фунт сайты тоже отдают, но мы их не показываем.
+    public static let displayOrder: [Currency] = [.rub, .usd, .eur, .kzt]
 
     /// ISO-код, например "USD".
     public var code: String { rawValue.uppercased() }

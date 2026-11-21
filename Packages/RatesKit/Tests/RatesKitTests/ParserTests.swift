@@ -64,7 +64,6 @@ struct ParserTests {
         let snapshot = try MBankParser.parse(json: try fixture("mbank.json"))
         #expect(snapshot.bank == .mbank)
 
-        // У МБанка нет юаня, поэтому только четыре валюты.
         #expect(snapshot.rates(.cash).map(\.currency) == [.rub, .usd, .eur, .kzt])
 
         let cashUSD = try #require(snapshot.rates(.cash, in: [.usd]).first)
@@ -78,6 +77,18 @@ struct ParserTests {
         // "2026-11-20T08:30:00+06:00".
         let expected = try #require(ISO8601DateFormatter().date(from: "2026-11-20T02:30:00Z"))
         #expect(snapshot.bankUpdatedAt == expected)
+    }
+
+    @Test func cbrDongPerRubleAndSom() throws {
+        let rates = try CBRParser.parse(xml: try fixture("cbr.xml"))
+
+        // 10 000 донгов = 32,0321 ₽, 100 сомов = 93,9864 ₽.
+        #expect(rates.perRubleText == "312")
+        #expect(rates.perSomText == "293")
+
+        // Дата курса 21.11.2026 по Москве (UTC+3).
+        let expected = try #require(ISO8601DateFormatter().date(from: "2026-11-20T21:00:00Z"))
+        #expect(rates.rateDate == expected)
     }
 
     @Test func akchabarMossovetRow() throws {

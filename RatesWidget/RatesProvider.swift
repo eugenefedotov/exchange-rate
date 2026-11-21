@@ -18,6 +18,8 @@ struct RatesEntry: TimelineEntry {
     let source: WidgetSource
     /// nil, если по этому источнику ещё ни разу не удалось загрузить курсы.
     let model: WidgetRatesModel?
+    /// Донг по курсу ЦБ РФ. Не зависит от выбранного источника, показывается в среднем виджете.
+    var dong: DongRates? = nil
 }
 
 /// Виджет сам ходит за курсами раз в час. Сокеты тут не нужны и невозможны:
@@ -29,7 +31,7 @@ struct RatesProvider: AppIntentTimelineProvider {
     static let freshCacheAge: TimeInterval = 10 * 60
 
     func placeholder(in context: Context) -> RatesEntry {
-        RatesEntry(date: .now, source: .exchange, model: Self.model(.sample, isStale: false))
+        RatesEntry(date: .now, source: .exchange, model: Self.model(.sample, isStale: false), dong: .sample)
     }
 
     func snapshot(for configuration: RatesWidgetIntent, in context: Context) async -> RatesEntry {
@@ -41,7 +43,8 @@ struct RatesProvider: AppIntentTimelineProvider {
         } else {
             model = Self.model(context.isPreview ? .sample : (RatesService().cached() ?? .sample), isStale: false)
         }
-        return RatesEntry(date: .now, source: source, model: model)
+        let dong = context.isPreview ? .sample : (DongService().cached() ?? .sample)
+        return RatesEntry(date: .now, source: source, model: model, dong: dong)
     }
 
     func timeline(for configuration: RatesWidgetIntent, in context: Context) async -> Timeline<RatesEntry> {
@@ -53,14 +56,16 @@ struct RatesProvider: AppIntentTimelineProvider {
     private static func loadEntry(source: WidgetSource, kind: BankRateKind) async -> RatesEntry {
         let exchangeService = RatesService()
         let bankServices = Bank.allCases.map(BankService.init(bank:))
+        let dongService = DongService()
 
         // Быстрый путь для переключателя: свежий кэш выбранного источника показываем сразу.
         if let model = cachedModel(source: source, kind: kind, exchangeService: exchangeService, maxAge: freshCacheAge) {
-            return RatesEntry(date: .now, source: source, model: model)
+            return RatesEntry(date: .now, source: source, model: model, dong: await loadDong(dongService))
         }
 
         // Иначе обновляем все источники параллельно, чтобы остальные были готовы к переключению.
         async let exchange = try? exchangeService.fetch()
+        async let dong = try? dongService.fetch()
         let banks = await withTaskGroup(of: BankRatesSnapshot?.self) { group in
             for service in bankServices {
                 group.addTask { try? await service.fetch() }
@@ -79,7 +84,17 @@ struct RatesProvider: AppIntentTimelineProvider {
             freshExchange.map { model($0, isStale: false) }
         }
         let model = fresh ?? cachedModel(source: source, kind: kind, exchangeService: exchangeService, maxAge: nil)
-        return RatesEntry(date: .now, source: source, model: model)
+        let dongRates = await dong ?? dongService.cached()
+        return RatesEntry(date: .now, source: source, model: model, dong: dongRates)
+    }
+
+    /// ЦБ меняет курс раз в день, поэтому донг из кэша моложе 3 часов не перезапрашиваем.
+    private static func loadDong(_ service: DongService) async -> DongRates? {
+        let cached = service.cached()
+        if let cached, Date.now.timeIntervalSince(cached.fetchedAt) < 3 * 60 * 60 {
+            return cached
+        }
+        return (try? await service.fetch()) ?? cached
     }
 
     /// Модель из кэша. С maxAge возвращает только достаточно свежий кэш, без него любой и помечает устаревшим.
