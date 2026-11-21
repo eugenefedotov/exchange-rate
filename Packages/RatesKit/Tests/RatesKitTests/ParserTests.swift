@@ -60,6 +60,26 @@ struct ParserTests {
         #expect(snapshot.bankUpdatedAt == expected)
     }
 
+    @Test func mbankCashAndNonCash() throws {
+        let snapshot = try MBankParser.parse(json: try fixture("mbank.json"))
+        #expect(snapshot.bank == .mbank)
+
+        // У МБанка нет юаня, поэтому только четыре валюты.
+        #expect(snapshot.rates(.cash).map(\.currency) == [.rub, .usd, .eur, .kzt])
+
+        let cashUSD = try #require(snapshot.rates(.cash, in: [.usd]).first)
+        #expect(cashUSD.buy == Decimal(string: "87.5"))
+        #expect(cashUSD.sell == Decimal(string: "87.8"))
+
+        let nonCashRub = try #require(snapshot.rates(.nonCash, in: [.rub]).first)
+        #expect(nonCashRub.buyText == "1.037")
+        #expect(nonCashRub.sellText == "1.093")
+
+        // "2026-11-20T08:30:00+06:00".
+        let expected = try #require(ISO8601DateFormatter().date(from: "2026-11-20T02:30:00Z"))
+        #expect(snapshot.bankUpdatedAt == expected)
+    }
+
     @Test func akchabarMossovetRow() throws {
         let rates = try AkchabarParser.parse(json: try fixture("akchabar.json"))
 

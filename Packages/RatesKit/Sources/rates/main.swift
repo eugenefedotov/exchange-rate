@@ -18,31 +18,43 @@ func printError(_ title: String, _ error: Error) {
     FileHandle.standardError.write(Data("\(title): \(error.localizedDescription)\n\n".utf8))
 }
 
-async let exchange = RatesService(cache: nil).fetch()
-async let bakai = BakaiService(cache: nil).fetch()
+// Все источники параллельно.
+async let exchange = capture { try await RatesService(cache: nil).fetch() }
+async let bakai = capture { try await BankService(bank: .bakai, cache: nil).fetch() }
+async let mbank = capture { try await BankService(bank: .mbank, cache: nil).fetch() }
 
 var failed = 0
 
-do {
-    let snapshot = try await exchange
+switch await exchange {
+case .success(let snapshot):
     printTable("Обменки (\(snapshot.source.name)): \(snapshot.source.details)", snapshot.rates(in: Currency.displayOrder))
-} catch {
+case .failure(let error):
     failed += 1
     printError("Обменки", error)
 }
 
-do {
-    let snapshot = try await bakai
-    let time = snapshot.updatedAt.ratesTimeText()
-    for kind in BakaiRateKind.allCases {
-        printTable("Бакай Банк, \(kind.title.lowercased()) (\(time))", snapshot.rates(kind))
+for result in await [bakai, mbank] {
+    switch result {
+    case .success(let snapshot):
+        let time = snapshot.updatedAt.ratesTimeText()
+        for kind in BankRateKind.allCases {
+            printTable("\(snapshot.bank.title), \(kind.title.lowercased()) (\(time))", snapshot.rates(kind))
+        }
+    case .failure(let error):
+        failed += 1
+        printError("Банк", error)
     }
-} catch {
-    failed += 1
-    printError("Бакай Банк", error)
 }
 
-exit(failed == 2 ? 1 : 0)
+exit(failed == 3 ? 1 : 0)
+
+func capture<T: Sendable>(_ body: @Sendable () async throws -> T) async -> Result<T, Error> {
+    do {
+        return .success(try await body())
+    } catch {
+        return .failure(error)
+    }
+}
 
 extension String {
     func leftPadded(to length: Int) -> String {

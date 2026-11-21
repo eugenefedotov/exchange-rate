@@ -41,7 +41,7 @@ private struct HomeRatesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 4) {
             if isCompact {
-                SourceSwitcher(selected: entry.source)
+                CompactSourceSwitcher(selected: entry.source)
             }
 
             Grid(alignment: .leading, horizontalSpacing: isCompact ? 6 : 10, verticalSpacing: isCompact ? 4 : 3) {
@@ -81,7 +81,7 @@ private struct HomeRatesView: View {
 
             Spacer(minLength: 0)
             if let model = entry.model {
-                FooterView(model: model)
+                FooterView(model: model, isCompact: isCompact)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -106,60 +106,142 @@ private struct HomeRatesView: View {
     }
 }
 
-/// Переключатель "Обменки | Бакай" в стиле системного сегмент-контрола.
+/// Как у UISegmentedControl: белый бегунок в светлой теме и серый в тёмной.
+private let segmentThumbColor = Color(uiColor: UIColor { traits in
+    traits.userInterfaceStyle == .dark ? .systemGray3 : .white
+})
+
+/// Пружина для переезда бегунка и точки: быстро, с еле заметным отскоком, как у системных контролов.
+private let switcherAnimation = Animation.spring(duration: 0.35, bounce: 0.15)
+
+/// Переключатель "Обменки | Бакай | МБанк" в стиле системного сегмент-контрола для среднего виджета.
 /// Каждый сегмент это кнопка с AppIntent, приложение при нажатии не открывается.
+/// Бегунок один на весь переключатель и только меняет смещение, поэтому при смене источника
+/// WidgetKit анимирует его как переезд, а не как исчезновение в одном месте и появление в другом.
 private struct SourceSwitcher: View {
     let selected: WidgetSource
 
-    /// Как у UISegmentedControl: белый бегунок в светлой теме и серый в тёмной.
-    private static let thumbColor = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark ? .systemGray3 : .white
-    })
+    /// Сегменты одинаковой ширины, чтобы смещение бегунка считалось просто от индекса.
+    private static let segmentWidth: CGFloat = 64
+
+    private var selectedIndex: Int {
+        WidgetSource.allCases.firstIndex(of: selected) ?? 0
+    }
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(WidgetSource.allCases, id: \.self) { source in
-                let isSelected = source == selected
-                Button(intent: SelectSourceIntent(source: source)) {
-                    Text(source.title)
-                        .font(.caption2.weight(isSelected ? .semibold : .medium))
-                        .foregroundStyle(isSelected ? .primary : .secondary)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background {
-                            if isSelected {
-                                Capsule()
-                                    .fill(Self.thumbColor)
-                                    .shadow(color: .black.opacity(0.12), radius: 1.5, y: 1)
-                            }
-                        }
-                        .contentShape(Capsule())
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(segmentThumbColor)
+                .shadow(color: .black.opacity(0.12), radius: 1.5, y: 1)
+                .frame(width: Self.segmentWidth)
+                .offset(x: Self.segmentWidth * CGFloat(selectedIndex))
+                .animation(switcherAnimation, value: selected)
+
+            HStack(spacing: 0) {
+                ForEach(WidgetSource.allCases, id: \.self) { source in
+                    let isSelected = source == selected
+                    Button(intent: SelectSourceIntent(source: source)) {
+                        Text(source.title)
+                            .font(.caption2.weight(isSelected ? .semibold : .medium))
+                            .foregroundStyle(isSelected ? .primary : .secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .padding(.vertical, 3)
+                            .frame(width: Self.segmentWidth)
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .padding(2)
         .background(Capsule().fill(Color(uiColor: .tertiarySystemFill)))
         .widgetAccentable()
     }
 }
 
+/// Для маленького виджета три сегмента не помещаются, поэтому шапка показывает текущий источник
+/// и точки-индикатор, как у страниц iOS. Нажатие переключает на следующий источник по кругу.
+private struct CompactSourceSwitcher: View {
+    let selected: WidgetSource
+
+    private static let dotSize: CGFloat = 5
+    private static let dotSpacing: CGFloat = 3
+
+    private var selectedIndex: Int {
+        WidgetSource.allCases.firstIndex(of: selected) ?? 0
+    }
+
+    private var next: WidgetSource {
+        let all = WidgetSource.allCases
+        return all[(selectedIndex + 1) % all.count]
+    }
+
+    var body: some View {
+        Button(intent: SelectSourceIntent(source: next)) {
+            HStack(spacing: 6) {
+                // Название въезжает справа, как при листании страниц.
+                Text(selected.title)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .id(selected)
+                    .transition(.push(from: .trailing))
+                    .animation(switcherAnimation, value: selected)
+                Spacer(minLength: 4)
+                // Активная точка одна и переезжает по серым, как бегунок в среднем виджете.
+                ZStack(alignment: .leading) {
+                    HStack(spacing: Self.dotSpacing) {
+                        ForEach(WidgetSource.allCases, id: \.self) { _ in
+                            Circle()
+                                .fill(.tertiary)
+                                .frame(width: Self.dotSize, height: Self.dotSize)
+                        }
+                    }
+                    Circle()
+                        .fill(.primary)
+                        .frame(width: Self.dotSize, height: Self.dotSize)
+                        .offset(x: (Self.dotSize + Self.dotSpacing) * CGFloat(selectedIndex))
+                        .animation(switcherAnimation, value: selected)
+                }
+            }
+            .clipped()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Color(uiColor: .tertiarySystemFill)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .widgetAccentable()
+        .accessibilityLabel("Источник: \(selected.title). Нажмите, чтобы переключить на \(next.title)")
+    }
+}
+
 private struct FooterView: View {
     let model: WidgetRatesModel
+    let isCompact: Bool
 
     var body: some View {
         HStack(spacing: 4) {
             if model.isStale {
                 Image(systemName: "exclamationmark.arrow.trianglehead.counterclockwise")
             }
-            Text("\(model.sourceLabel) · \(model.updatedAt, format: .dateTime.hour().minute())")
+            Text("\(isCompact ? model.compactSourceLabel : model.sourceLabel) · \(model.updatedAt.widgetTimeText)")
         }
         .font(.caption2)
         .foregroundStyle(.tertiary)
         .lineLimit(1)
+    }
+}
+
+private extension Date {
+    /// "14:10" для сегодняшних данных и "20.11 08:30" для более старых,
+    /// чтобы вчерашний курс банка не выглядел сегодняшним.
+    var widgetTimeText: String {
+        let time = formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
+        guard !Calendar.current.isDateInToday(self) else { return time }
+        return "\(formatted(.dateTime.day(.twoDigits).month(.twoDigits))) \(time)"
     }
 }
 
@@ -180,7 +262,7 @@ private struct RectangularRatesView: View {
                             .monospacedDigit()
                     }
                 }
-                Text("\(entry.source.title) · \(model.updatedAt, format: .dateTime.hour().minute())")
+                Text("\(entry.source.title) · \(model.updatedAt.widgetTimeText)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             } else {
@@ -212,14 +294,15 @@ private struct InlineRatesView: View {
     RatesWidget()
 } timeline: {
     RatesEntry(date: .now, source: .exchange, model: RatesProvider.model(.sample, isStale: false))
-    RatesEntry(date: .now, source: .bakai, model: RatesProvider.model(.sample, kind: .cash, isStale: false))
+    RatesEntry(date: .now, source: .bakai, model: RatesProvider.model(.sample(.bakai), kind: .cash, isStale: false))
+    RatesEntry(date: .now, source: .mbank, model: RatesProvider.model(.sample(.mbank), kind: .nonCash, isStale: false))
 }
 
 #Preview("Маленький", as: .systemSmall) {
     RatesWidget()
 } timeline: {
     RatesEntry(date: .now, source: .exchange, model: RatesProvider.model(.sample, isStale: false))
-    RatesEntry(date: .now, source: .bakai, model: RatesProvider.model(.sample, kind: .nonCash, isStale: true))
+    RatesEntry(date: .now, source: .mbank, model: RatesProvider.model(.sample(.mbank), kind: .nonCash, isStale: true))
 }
 
 #Preview("Экран блокировки", as: .accessoryRectangular) {

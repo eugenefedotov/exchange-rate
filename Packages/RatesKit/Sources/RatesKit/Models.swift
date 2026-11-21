@@ -22,12 +22,14 @@ public enum RateSourceID: String, Codable, Sendable, Hashable {
     case valutaKG
     case akchabar
     case bakai
+    case mbank
 
     public var name: String {
         switch self {
         case .valutaKG: "valuta.kg"
         case .akchabar: "akchabar.kg"
         case .bakai: "bakai.kg"
+        case .mbank: "mbank.kg"
         }
     }
 
@@ -37,6 +39,7 @@ public enum RateSourceID: String, Codable, Sendable, Hashable {
         case .valutaKG: "Средний курс обменок Бишкека за последние 2 часа"
         case .akchabar: "Средний курс обменок Моссовета"
         case .bakai: "Курс Бакай Банка"
+        case .mbank: "Курс МБанка"
         }
     }
 
@@ -45,6 +48,7 @@ public enum RateSourceID: String, Codable, Sendable, Hashable {
         case .valutaKG: URL(string: "https://valuta.kg/")!
         case .akchabar: URL(string: "https://www.akchabar.kg/ru/currency-rate")!
         case .bakai: URL(string: "https://bakai.kg/")!
+        case .mbank: URL(string: "https://mbank.kg/")!
         }
     }
 }

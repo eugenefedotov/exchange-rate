@@ -3,28 +3,26 @@ import SafariServices
 import UIKit
 import WidgetKit
 
-/// Главный экран: курсы обменок и Бакай Банка к сому, источники и время обновления.
+/// Главный экран: курсы обменок и банков к сому, источники и время обновления.
 final class RatesViewController: UITableViewController {
     /// Чаще не дёргаем сайты при возврате в приложение.
     private static let foregroundRefreshInterval: TimeInterval = 10 * 60
     private static let footerReuseID = "RatesFooter"
     private static let sourceReuseID = "SourceCell"
-    private static let bakaiKindKey = "bakaiRateKind"
 
     private let exchangeService = RatesService()
-    private let bakaiService = BakaiService()
+    private let bankServices = Bank.allCases.map(BankService.init(bank:))
 
     private var exchange: RatesSnapshot?
     private var exchangeError: String?
-    private var bakai: BakaiRatesSnapshot?
-    private var bakaiError: String?
-    private var bakaiKind: BakaiRateKind = .cash {
-        didSet { UserDefaults.standard.set(bakaiKind.rawValue, forKey: Self.bakaiKindKey) }
-    }
+    private var banks: [Bank: BankRatesSnapshot] = [:]
+    private var bankErrors: [Bank: String] = [:]
+    /// Наличные или безнал, отдельно для каждого банка. Запоминается между запусками.
+    private var bankKinds: [Bank: BankRateKind] = [:]
 
     private var refreshTask: Task<Void, Never>?
     /// Пока приложение на экране, обновляемся сами раз в 10 минут. В фоне iOS приложение не будит,
-    /// за фоновые обновления отвечают виджеты.
+    /// за фоновые обновления отвечает виджет.
     private var autoRefreshTask: Task<Void, Never>?
     private lazy var dataSource = makeDataSource()
 
@@ -65,14 +63,24 @@ final class RatesViewController: UITableViewController {
             object: nil
         )
 
-        if let saved = UserDefaults.standard.string(forKey: Self.bakaiKindKey).flatMap(BakaiRateKind.init) {
-            bakaiKind = saved
+        for bank in Bank.allCases {
+            bankKinds[bank] = UserDefaults.standard.string(forKey: Self.kindKey(bank)).flatMap(BankRateKind.init) ?? .cash
         }
         exchange = exchangeService.cached()
-        bakai = bakaiService.cached()
+        for service in bankServices {
+            banks[service.bank] = service.cached()
+        }
         render(animated: false)
         refresh()
         startAutoRefresh()
+    }
+
+    private static func kindKey(_ bank: Bank) -> String {
+        "bankRateKind.\(bank.rawValue)"
+    }
+
+    private func kind(for bank: Bank) -> BankRateKind {
+        bankKinds[bank] ?? .cash
     }
 
     // MARK: - Загрузка
@@ -82,7 +90,7 @@ final class RatesViewController: UITableViewController {
     }
 
     @objc private func willEnterForeground() {
-        let dates = [exchange?.fetchedAt, bakai?.fetchedAt]
+        let dates = [exchange?.fetchedAt] + Bank.allCases.map { banks[$0]?.fetchedAt }
         let oldest = dates.map { $0 ?? .distantPast }.min() ?? .distantPast
         if Date.now.timeIntervalSince(oldest) > Self.foregroundRefreshInterval {
             refresh()
@@ -108,12 +116,20 @@ final class RatesViewController: UITableViewController {
 
     private func refresh() {
         guard refreshTask == nil else { return }
-        refreshTask = Task { [weak self, exchangeService, bakaiService] in
-            // Оба источника параллельно: медленный сайт не задерживает второй.
+        refreshTask = Task { [weak self, exchangeService, bankServices] in
+            // Все источники параллельно: медленный сайт не задерживает остальные.
             async let exchange = Self.capture { try await exchangeService.fetch() }
-            async let bakai = Self.capture { try await bakaiService.fetch() }
-            let results = await (exchange, bakai)
-            self?.apply(exchange: results.0, bakai: results.1)
+            let banks = await withTaskGroup(of: (Bank, Result<BankRatesSnapshot, Error>).self) { group in
+                for service in bankServices {
+                    group.addTask { (service.bank, await Self.capture { try await service.fetch() }) }
+                }
+                var results: [Bank: Result<BankRatesSnapshot, Error>] = [:]
+                for await (bank, result) in group {
+                    results[bank] = result
+                }
+                return results
+            }
+            self?.apply(exchange: await exchange, banks: banks)
         }
     }
 
@@ -127,21 +143,32 @@ final class RatesViewController: UITableViewController {
         }
     }
 
-    private func apply(exchange exchangeResult: Result<RatesSnapshot, Error>, bakai bakaiResult: Result<BakaiRatesSnapshot, Error>) {
+    private func apply(exchange exchangeResult: Result<RatesSnapshot, Error>, banks bankResults: [Bank: Result<BankRatesSnapshot, Error>]) {
         refreshTask = nil
         refreshControl?.endRefreshing()
 
+        var anySuccess = false
         switch exchangeResult {
-        case .success(let snapshot): exchange = snapshot; exchangeError = nil
-        case .failure(let error): exchangeError = error.localizedDescription
+        case .success(let snapshot):
+            exchange = snapshot
+            exchangeError = nil
+            anySuccess = true
+        case .failure(let error):
+            exchangeError = error.localizedDescription
         }
-        switch bakaiResult {
-        case .success(let snapshot): bakai = snapshot; bakaiError = nil
-        case .failure(let error): bakaiError = error.localizedDescription
+        for (bank, result) in bankResults {
+            switch result {
+            case .success(let snapshot):
+                banks[bank] = snapshot
+                bankErrors[bank] = nil
+                anySuccess = true
+            case .failure(let error):
+                bankErrors[bank] = error.localizedDescription
+            }
         }
 
-        // Виджеты живут своей жизнью, но раз уж данные свежие, пусть обновятся и они.
-        if exchangeError == nil || bakaiError == nil {
+        // Виджет живёт своей жизнью, но раз уж данные свежие, пусть обновится и он.
+        if anySuccess {
             WidgetCenter.shared.reloadAllTimelines()
         }
         render(animated: true)
@@ -155,23 +182,23 @@ final class RatesViewController: UITableViewController {
             switch item {
             case .exchange(let currency):
                 return rateCell(tableView, indexPath, exchange?.rate(for: currency))
-            case .bakai(let currency):
-                let rate = bakai?.rates(bakaiKind, in: [currency]).first
+            case .bankRate(let bank, let currency):
+                let rate = banks[bank]?.rates(kind(for: bank), in: [currency]).first
                 return rateCell(tableView, indexPath, rate)
-            case .bakaiKind:
+            case .bankKind(let bank):
                 let cell = tableView.dequeueReusableCell(withIdentifier: SegmentedCell.reuseID, for: indexPath)
-                let kinds = BakaiRateKind.allCases
+                let kinds = BankRateKind.allCases
                 (cell as? SegmentedCell)?.configure(
                     items: kinds.map(\.title),
-                    selectedIndex: kinds.firstIndex(of: bakaiKind) ?? 0
+                    selectedIndex: kinds.firstIndex(of: kind(for: bank)) ?? 0
                 ) { [weak self] index in
-                    self?.selectBakaiKind(kinds[index])
+                    self?.select(kinds[index], for: bank)
                 }
                 return cell
             case .source(let source):
                 let cell = tableView.dequeueReusableCell(withIdentifier: Self.sourceReuseID, for: indexPath)
                 var content = UIListContentConfiguration.valueCell()
-                content.text = source == .bakai ? "Бакай Банк" : "Обменки"
+                content.text = Self.sourceTitle(source)
                 content.secondaryText = source.name
                 cell.contentConfiguration = content
                 cell.accessoryType = .disclosureIndicator
@@ -180,6 +207,10 @@ final class RatesViewController: UITableViewController {
         }
         dataSource.defaultRowAnimation = .fade
         return dataSource
+    }
+
+    private static func sourceTitle(_ source: RateSourceID) -> String {
+        Bank.allCases.first { $0.source == source }?.title ?? "Обменки"
     }
 
     private func rateCell(_ tableView: UITableView, _ indexPath: IndexPath, _ rate: ExchangeRate?) -> UITableViewCell {
@@ -193,17 +224,21 @@ final class RatesViewController: UITableViewController {
     private func render(animated: Bool) {
         let previous = dataSource.snapshot()
         var diff = RatesDiffSnapshot()
+        var sources: [RateSourceID] = []
 
         if let exchange {
             diff.appendSections([.exchange])
             diff.appendItems(exchange.rates(in: Currency.displayOrder).map { .exchange($0.currency) }, toSection: .exchange)
+            sources.append(exchange.source)
         }
-        if let bakai {
-            diff.appendSections([.bakai])
-            diff.appendItems([.bakaiKind], toSection: .bakai)
-            diff.appendItems(bakai.rates(bakaiKind).map { .bakai($0.currency) }, toSection: .bakai)
+        for bank in Bank.allCases {
+            guard let snapshot = banks[bank] else { continue }
+            let section = RatesSection.bank(bank)
+            diff.appendSections([section])
+            diff.appendItems([.bankKind(bank)], toSection: section)
+            diff.appendItems(snapshot.rates(kind(for: bank)).map { .bankRate(bank, $0.currency) }, toSection: section)
+            sources.append(bank.source)
         }
-        let sources = [exchange.map(\.source), bakai.map { _ in RateSourceID.bakai }].compactMap { $0 }
         if !sources.isEmpty {
             diff.appendSections([.sources])
             diff.appendItems(sources.map { .source($0) }, toSection: .sources)
@@ -217,9 +252,10 @@ final class RatesViewController: UITableViewController {
         tableView.backgroundView = sources.isEmpty ? makeEmptyView() : nil
     }
 
-    private func selectBakaiKind(_ kind: BakaiRateKind) {
-        guard kind != bakaiKind else { return }
-        bakaiKind = kind
+    private func select(_ kind: BankRateKind, for bank: Bank) {
+        guard kind != self.kind(for: bank) else { return }
+        bankKinds[bank] = kind
+        UserDefaults.standard.set(kind.rawValue, forKey: Self.kindKey(bank))
         render(animated: true)
     }
 
@@ -248,10 +284,10 @@ final class RatesViewController: UITableViewController {
             guard let exchange else { return nil }
             lines.append("\(exchange.source.details). Обновлено \(exchange.fetchedAtText()).")
             if let exchangeError { lines.append("Не удалось обновить: \(exchangeError)") }
-        case .bakai:
-            guard let bakai else { return nil }
-            lines.append("\(bakaiKind.details). Данные банка на \(bakai.updatedAt.ratesTimeText()).")
-            if let bakaiError { lines.append("Не удалось обновить: \(bakaiError)") }
+        case .bank(let bank):
+            guard let snapshot = banks[bank] else { return nil }
+            lines.append("\(kind(for: bank).details). Курс банка обновлён \(snapshot.updatedAt.ratesTimeText()).")
+            if let error = bankErrors[bank] { lines.append("Не удалось обновить: \(error)") }
         case .sources:
             lines.append("Везде указано, сколько сомов дают и просят за 1 единицу валюты.")
         }
@@ -260,7 +296,7 @@ final class RatesViewController: UITableViewController {
 
     private func makeEmptyView() -> UIView {
         let label = UILabel()
-        let error = exchangeError ?? bakaiError
+        let error = exchangeError ?? Bank.allCases.compactMap { bankErrors[$0] }.first
         label.text = error.map { "Не удалось загрузить курсы.\n\($0)" } ?? "Загружаем курсы..."
         label.textColor = .secondaryLabel
         label.font = .preferredFont(forTextStyle: .body)

@@ -6,6 +6,8 @@ struct WidgetRatesModel {
     var rates: [ExchangeRate]
     /// Подпись в подвале, например "valuta.kg" или "bakai.kg · нал".
     var sourceLabel: String
+    /// То же для маленького виджета, где банк уже назван в шапке: "valuta.kg" или "нал".
+    var compactSourceLabel: String
     var updatedAt: Date
     /// true, если сеть не ответила и показываем последнее сохранённое.
     var isStale: Bool
@@ -32,71 +34,88 @@ struct RatesProvider: AppIntentTimelineProvider {
 
     func snapshot(for configuration: RatesWidgetIntent, in context: Context) async -> RatesEntry {
         let source = context.isPreview ? .exchange : WidgetSelection.current
-        let kind = configuration.bakaiKind.kind
-        let model: WidgetRatesModel = switch source {
-        case .exchange:
-            Self.model(context.isPreview ? .sample : (RatesService().cached() ?? .sample), isStale: false)
-        case .bakai:
-            Self.model(BakaiService().cached() ?? .sample, kind: kind, isStale: false)
+        let kind = configuration.bankKind.kind
+        let model: WidgetRatesModel
+        if let bank = source.bank {
+            model = Self.model(BankService(bank: bank).cached() ?? .sample(bank), kind: kind, isStale: false)
+        } else {
+            model = Self.model(context.isPreview ? .sample : (RatesService().cached() ?? .sample), isStale: false)
         }
         return RatesEntry(date: .now, source: source, model: model)
     }
 
     func timeline(for configuration: RatesWidgetIntent, in context: Context) async -> Timeline<RatesEntry> {
-        let entry = await Self.loadEntry(source: WidgetSelection.current, kind: configuration.bakaiKind.kind)
+        let entry = await Self.loadEntry(source: WidgetSelection.current, kind: configuration.bankKind.kind)
         let delay = (entry.model?.isStale ?? true) ? Self.retryInterval : Self.refreshInterval
         return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(delay)))
     }
 
-    private static func loadEntry(source: WidgetSource, kind: BakaiRateKind) async -> RatesEntry {
+    private static func loadEntry(source: WidgetSource, kind: BankRateKind) async -> RatesEntry {
         let exchangeService = RatesService()
-        let bakaiService = BakaiService()
-        let cachedExchange = exchangeService.cached()
-        let cachedBakai = bakaiService.cached()
+        let bankServices = Bank.allCases.map(BankService.init(bank:))
 
         // Быстрый путь для переключателя: свежий кэш выбранного источника показываем сразу.
-        switch source {
-        case .exchange:
-            if let cachedExchange, isFresh(cachedExchange.fetchedAt) {
-                return RatesEntry(date: .now, source: source, model: model(cachedExchange, isStale: false))
-            }
-        case .bakai:
-            if let cachedBakai, isFresh(cachedBakai.fetchedAt) {
-                return RatesEntry(date: .now, source: source, model: model(cachedBakai, kind: kind, isStale: false))
-            }
+        if let model = cachedModel(source: source, kind: kind, exchangeService: exchangeService, maxAge: freshCacheAge) {
+            return RatesEntry(date: .now, source: source, model: model)
         }
 
-        // Иначе обновляем оба источника параллельно, чтобы второй был готов к переключению.
-        async let exchangeResult = try? exchangeService.fetch()
-        async let bakaiResult = try? bakaiService.fetch()
-        let (exchange, bakai) = await (exchangeResult, bakaiResult)
-
-        let model: WidgetRatesModel? = switch source {
-        case .exchange:
-            exchange.map { model($0, isStale: false) } ?? cachedExchange.map { model($0, isStale: true) }
-        case .bakai:
-            bakai.map { model($0, kind: kind, isStale: false) } ?? cachedBakai.map { model($0, kind: kind, isStale: true) }
+        // Иначе обновляем все источники параллельно, чтобы остальные были готовы к переключению.
+        async let exchange = try? exchangeService.fetch()
+        let banks = await withTaskGroup(of: BankRatesSnapshot?.self) { group in
+            for service in bankServices {
+                group.addTask { try? await service.fetch() }
+            }
+            var result: [Bank: BankRatesSnapshot] = [:]
+            for await snapshot in group {
+                if let snapshot { result[snapshot.bank] = snapshot }
+            }
+            return result
         }
+        let freshExchange = await exchange
+
+        let fresh: WidgetRatesModel? = if let bank = source.bank {
+            banks[bank].map { model($0, kind: kind, isStale: false) }
+        } else {
+            freshExchange.map { model($0, isStale: false) }
+        }
+        let model = fresh ?? cachedModel(source: source, kind: kind, exchangeService: exchangeService, maxAge: nil)
         return RatesEntry(date: .now, source: source, model: model)
     }
 
-    private static func isFresh(_ date: Date) -> Bool {
-        Date.now.timeIntervalSince(date) < freshCacheAge
+    /// Модель из кэша. С maxAge возвращает только достаточно свежий кэш, без него любой и помечает устаревшим.
+    private static func cachedModel(
+        source: WidgetSource,
+        kind: BankRateKind,
+        exchangeService: RatesService,
+        maxAge: TimeInterval?
+    ) -> WidgetRatesModel? {
+        let isStale = maxAge == nil
+        func fits(_ date: Date) -> Bool {
+            maxAge.map { Date.now.timeIntervalSince(date) < $0 } ?? true
+        }
+        if let bank = source.bank {
+            guard let cached = BankService(bank: bank).cached(), fits(cached.fetchedAt) else { return nil }
+            return model(cached, kind: kind, isStale: isStale)
+        }
+        guard let cached = exchangeService.cached(), fits(cached.fetchedAt) else { return nil }
+        return model(cached, isStale: isStale)
     }
 
     static func model(_ snapshot: RatesSnapshot, isStale: Bool) -> WidgetRatesModel {
         WidgetRatesModel(
             rates: snapshot.rates(in: Currency.displayOrder),
             sourceLabel: snapshot.source.name,
+            compactSourceLabel: snapshot.source.name,
             updatedAt: snapshot.fetchedAt,
             isStale: isStale
         )
     }
 
-    static func model(_ snapshot: BakaiRatesSnapshot, kind: BakaiRateKind, isStale: Bool) -> WidgetRatesModel {
+    static func model(_ snapshot: BankRatesSnapshot, kind: BankRateKind, isStale: Bool) -> WidgetRatesModel {
         WidgetRatesModel(
             rates: snapshot.rates(kind),
-            sourceLabel: "\(RateSourceID.bakai.name) · \(kind == .cash ? "нал" : "безнал")",
+            sourceLabel: "\(snapshot.bank.source.name) · \(kind.shortTitle)",
+            compactSourceLabel: kind.shortTitle,
             updatedAt: snapshot.updatedAt,
             isStale: isStale
         )

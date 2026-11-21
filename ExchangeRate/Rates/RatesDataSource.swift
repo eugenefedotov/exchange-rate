@@ -4,15 +4,15 @@ import UIKit
 enum RatesSection: Hashable {
     /// Средний курс обменок.
     case exchange
-    /// Бакай Банк отдельной категорией.
-    case bakai
+    /// Банк отдельной категорией: Бакай, МБанк.
+    case bank(Bank)
     /// Ссылки на источники.
     case sources
 
     var title: String? {
         switch self {
         case .exchange: "Обменки"
-        case .bakai: "Бакай Банк"
+        case .bank(let bank): bank.title
         case .sources: nil
         }
     }
@@ -22,8 +22,8 @@ enum RatesSection: Hashable {
 /// Новые цифры прилетают через reconfigureItems без пересоздания ячеек.
 enum RatesItem: Hashable {
     case exchange(Currency)
-    case bakaiKind
-    case bakai(Currency)
+    case bankKind(Bank)
+    case bankRate(Bank, Currency)
     case source(RateSourceID)
 }
 

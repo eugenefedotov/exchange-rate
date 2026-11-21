@@ -2,21 +2,21 @@ import AppIntents
 import RatesKit
 import WidgetKit
 
-/// Что сейчас показывает виджет.
-enum WidgetSource: String, AppEnum, CaseIterable {
+/// Что сейчас показывает виджет: сегменты переключателя в шапке.
+enum WidgetSource: String, CaseIterable {
     case exchange
     case bakai
-
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Источник"
-    static let caseDisplayRepresentations: [WidgetSource: DisplayRepresentation] = [
-        .exchange: "Обменки",
-        .bakai: "Бакай",
-    ]
+    case mbank
 
     var title: String {
+        bank?.shortTitle ?? "Обменки"
+    }
+
+    var bank: Bank? {
         switch self {
-        case .exchange: "Обменки"
-        case .bakai: "Бакай"
+        case .exchange: nil
+        case .bakai: .bakai
+        case .mbank: .mbank
         }
     }
 }
@@ -51,21 +51,24 @@ struct SelectSourceIntent: AppIntent {
         if let source = WidgetSource(rawValue: sourceID) {
             WidgetSelection.current = source
         }
+        // Сам WidgetKit перерисует только нажатый виджет. Выбор общий для всех,
+        // поэтому обновляем остальные (второй размер, экран блокировки) тоже.
+        WidgetCenter.shared.reloadTimelines(ofKind: RatesWidget.kind)
         return .result()
     }
 }
 
-enum BakaiKindOption: String, AppEnum {
+enum BankKindOption: String, AppEnum {
     case cash
     case nonCash
 
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Курс Бакая"
-    static let caseDisplayRepresentations: [BakaiKindOption: DisplayRepresentation] = [
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Курс банков"
+    static let caseDisplayRepresentations: [BankKindOption: DisplayRepresentation] = [
         .cash: "Наличные",
         .nonCash: "Безнал",
     ]
 
-    var kind: BakaiRateKind {
+    var kind: BankRateKind {
         switch self {
         case .cash: .cash
         case .nonCash: .nonCash
@@ -76,10 +79,10 @@ enum BakaiKindOption: String, AppEnum {
 /// Настройки виджета (долгое нажатие > "Изменить виджет").
 struct RatesWidgetIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Курсы Валют"
-    static let description = IntentDescription("Какой курс Бакай Банка показывать.")
+    static let description = IntentDescription("Какой курс банков показывать: наличный или безналичный.")
 
-    @Parameter(title: "Курс Бакая", default: .cash)
-    var bakaiKind: BakaiKindOption
+    @Parameter(title: "Курс банков", default: .cash)
+    var bankKind: BankKindOption
 
     init() {}
 }

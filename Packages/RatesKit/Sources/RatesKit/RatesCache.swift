@@ -11,7 +11,10 @@ public struct RatesCache: Sendable {
 
     /// Файлы в Caches текущего процесса. У приложения и виджета они свои, App Group не нужен.
     public static let standard = RatesCache(fileName: "rates-snapshot.json")
-    public static let bakai = RatesCache(fileName: "bakai-snapshot.json")
+
+    public static func bank(_ bank: Bank) -> RatesCache {
+        RatesCache(fileName: "bank-\(bank.rawValue)-snapshot.json")
+    }
 
     init(fileName: String) {
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
