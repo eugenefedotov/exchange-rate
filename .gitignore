@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Xcode
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+*.xcscmblueprint
+
+# Локальные настройки подписи (Team ID у каждого свой)
+Config/Local.xcconfig
+
+# Swift Package Manager
+.build/
+.swiftpm/
