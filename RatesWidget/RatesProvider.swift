@@ -22,10 +22,15 @@ struct RatesEntry: TimelineEntry {
     var dong: DongRates? = nil
 }
 
-/// Виджет сам ходит за курсами раз в час. Сокеты тут не нужны и невозможны:
+/// Виджет сам ходит за курсами: днём раз в 20 минут, ночью раз в час. Сокеты тут не нужны и невозможны:
 /// расширение виджета не живёт постоянно, iOS будит его по расписанию из Timeline.
 struct RatesProvider: AppIntentTimelineProvider {
-    static let refreshInterval: TimeInterval = 60 * 60
+    /// Днём (8:00-20:00 по Бишкеку) обменки и банки работают, обновляем чаще.
+    /// Вместе с ночными получается около 48 обновлений в сутки: iOS даёт виджету примерно 40-70,
+    /// лишние запросы она просто пропускает.
+    static let dayRefreshInterval: TimeInterval = 20 * 60
+    static let nightRefreshInterval: TimeInterval = 60 * 60
+    static let dayHours = 8..<20
     static let retryInterval: TimeInterval = 15 * 60
     /// Если кэш свежее, переключатель показывает его сразу, без похода в сеть.
     static let freshCacheAge: TimeInterval = 10 * 60
@@ -49,8 +54,24 @@ struct RatesProvider: AppIntentTimelineProvider {
 
     func timeline(for configuration: RatesWidgetIntent, in context: Context) async -> Timeline<RatesEntry> {
         let entry = await Self.loadEntry(source: WidgetSelection.current, kind: configuration.bankKind.kind)
-        let delay = (entry.model?.isStale ?? true) ? Self.retryInterval : Self.refreshInterval
-        return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(delay)))
+        let next = (entry.model?.isStale ?? true) ? .now.addingTimeInterval(Self.retryInterval) : Self.nextRefresh()
+        return Timeline(entries: [entry], policy: .after(next))
+    }
+
+    /// Днём через 20 минут, ночью через час, но не позже начала дня.
+    static func nextRefresh(after now: Date = .now) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Bishkek") ?? .current
+        if dayHours.contains(calendar.component(.hour, from: now)) {
+            return now.addingTimeInterval(dayRefreshInterval)
+        }
+        let inHour = now.addingTimeInterval(nightRefreshInterval)
+        let dayStart = calendar.nextDate(
+            after: now,
+            matching: DateComponents(hour: dayHours.lowerBound, minute: 0),
+            matchingPolicy: .nextTime
+        )
+        return min(inHour, dayStart ?? inHour)
     }
 
     private static func loadEntry(source: WidgetSource, kind: BankRateKind) async -> RatesEntry {
