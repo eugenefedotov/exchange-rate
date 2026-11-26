@@ -62,11 +62,30 @@ public struct RatesSnapshot: Codable, Sendable, Hashable {
     public var rates: [ExchangeRate]
     public var source: RateSourceID
     public var fetchedAt: Date
+    /// Когда впервые увидели текущие цифры. Время из админок сайты обменок не отдают,
+    /// поэтому это момент опроса, на котором значения поменялись. В старых кэшах nil.
+    public var changedAt: Date?
 
-    public init(rates: [ExchangeRate], source: RateSourceID, fetchedAt: Date = .now) {
+    public init(rates: [ExchangeRate], source: RateSourceID, fetchedAt: Date = .now, changedAt: Date? = nil) {
         self.rates = rates
         self.source = source
         self.fetchedAt = fetchedAt
+        self.changedAt = changedAt
+    }
+
+    /// Время, которое показываем пользователю: когда цифры поменялись.
+    public var ratesChangedAt: Date { changedAt ?? fetchedAt }
+
+    /// Переносит время изменения из прошлого ответа, если видимые цифры и источник те же.
+    /// Иначе считаем, что курс поменялся сейчас.
+    public func keepingChangeTime(from previous: RatesSnapshot?) -> RatesSnapshot {
+        var snapshot = self
+        if let previous, previous.source == source, previous.rates(in: Currency.displayOrder) == rates(in: Currency.displayOrder) {
+            snapshot.changedAt = previous.ratesChangedAt
+        } else {
+            snapshot.changedAt = fetchedAt
+        }
+        return snapshot
     }
 
     public func rate(for currency: Currency) -> ExchangeRate? {

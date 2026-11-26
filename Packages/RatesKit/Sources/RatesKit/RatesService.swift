@@ -21,11 +21,13 @@ public struct RatesService: Sendable {
     }
 
     /// Свежие курсы. При успехе ответ сразу кладётся в кэш.
+    /// Время изменения цифр считается по сравнению с кэшем, поэтому его точность равна частоте опроса.
     public func fetch() async throws -> RatesSnapshot {
         var failures: [String] = []
+        let previous = cached()
         for source in sources {
             do {
-                let snapshot = try await source.fetch()
+                let snapshot = try await source.fetch().keepingChangeTime(from: previous)
                 let missing = Self.requiredCurrencies.filter { snapshot.rate(for: $0) == nil }
                 guard missing.isEmpty else { throw RatesError.missingCurrencies(missing) }
                 cache?.save(snapshot)

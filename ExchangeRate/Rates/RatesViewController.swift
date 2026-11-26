@@ -314,7 +314,7 @@ final class RatesViewController: UITableViewController {
         switch section {
         case .exchange:
             guard let exchange else { return nil }
-            lines.append("\(exchange.source.details). Обновлено \(exchange.fetchedAtText()).")
+            lines.append("\(exchange.source.details). Курс изменился \(exchange.changedAtText()).")
             if let exchangeError { lines.append("Не удалось обновить: \(exchangeError)") }
         case .bank(let bank):
             guard let snapshot = banks[bank] else { return nil }

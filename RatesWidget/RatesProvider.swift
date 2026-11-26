@@ -121,7 +121,7 @@ struct RatesProvider: AppIntentTimelineProvider {
             rates: snapshot.rates(in: Currency.displayOrder),
             sourceLabel: snapshot.source.name,
             compactSourceLabel: snapshot.source.name,
-            updatedAt: snapshot.fetchedAt,
+            updatedAt: snapshot.ratesChangedAt,
             isStale: isStale
         )
     }

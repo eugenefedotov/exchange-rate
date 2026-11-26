@@ -13,7 +13,7 @@ extension Date {
 }
 
 extension RatesSnapshot {
-    public func fetchedAtText(now: Date = .now, calendar: Calendar = .current) -> String {
-        fetchedAt.ratesTimeText(now: now, calendar: calendar)
+    public func changedAtText(now: Date = .now, calendar: Calendar = .current) -> String {
+        ratesChangedAt.ratesTimeText(now: now, calendar: calendar)
     }
 }
