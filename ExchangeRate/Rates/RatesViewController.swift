@@ -182,7 +182,8 @@ final class RatesViewController: UITableViewController {
         case .failure(let error): dongError = error.localizedDescription
         }
 
-        // Виджет живёт своей жизнью, но раз уж данные свежие, пусть обновится и он.
+        // У виджета свой кэш, общего без App Group нет. Просим его тоже сходить в сеть,
+        // чтобы он увидел те же цифры и время изменения совпало с приложением.
         if anySuccess {
             WidgetCenter.shared.reloadAllTimelines()
         }

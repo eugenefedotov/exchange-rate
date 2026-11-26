@@ -25,10 +25,22 @@ enum WidgetSource: String, CaseIterable {
 /// работают в одном процессе, App Group для этого не нужен.
 enum WidgetSelection {
     private static let key = "widgetSource"
+    private static let switchedAtKey = "widgetSourceSwitchedAt"
 
     static var current: WidgetSource {
         get { UserDefaults.standard.string(forKey: key).flatMap(WidgetSource.init) ?? .exchange }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: key) }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: key)
+            UserDefaults.standard.set(Date.now, forKey: switchedAtKey)
+        }
+    }
+
+    /// true сразу после нажатия на переключатель. Только тогда виджет берёт свежий кэш без сети.
+    /// Остальные перерисовки (по расписанию, после загрузки в приложении) идут в сеть,
+    /// иначе виджет показал бы старые цифры, а приложение - новые, и время изменения разошлось бы.
+    static var justSwitched: Bool {
+        guard let date = UserDefaults.standard.object(forKey: switchedAtKey) as? Date else { return false }
+        return Date.now.timeIntervalSince(date) < 60
     }
 }
 

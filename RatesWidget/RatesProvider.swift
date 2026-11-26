@@ -80,7 +80,7 @@ struct RatesProvider: AppIntentTimelineProvider {
         let dongService = DongService()
 
         // Быстрый путь для переключателя: свежий кэш выбранного источника показываем сразу.
-        if let model = cachedModel(source: source, kind: kind, exchangeService: exchangeService, maxAge: freshCacheAge) {
+        if WidgetSelection.justSwitched, let model = cachedModel(source: source, kind: kind, exchangeService: exchangeService, maxAge: freshCacheAge) {
             return RatesEntry(date: .now, source: source, model: model, dong: await loadDong(dongService))
         }
 
